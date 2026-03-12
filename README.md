@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # HangClaw
 
 > 基于 OpenClaw 架构的双引擎（Node.js Gateway + Python Runner）多渠道 AI Agent 基础设施。
