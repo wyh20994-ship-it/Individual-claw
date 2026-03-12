@@ -1,0 +1,26 @@
+# HangClaw Python Runner Dependencies
+
+# --- Core ---
+websockets>=12.0
+pydantic>=2.5
+pyyaml>=6.0
+python-dotenv>=1.0
+uvloop>=0.19; sys_platform != "win32"
+
+# --- LLM ---
+openai>=1.10
+httpx>=0.26
+
+# --- Memory ---
+chromadb>=0.4.22
+sentence-transformers>=2.3
+
+# --- Tools ---
+aiohttp>=3.9
+aiofiles>=23.2
+
+# --- Services ---
+apscheduler>=3.10
+
+# --- Logging ---
+loguru>=0.7

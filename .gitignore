@@ -1,0 +1,27 @@
+# Environment
+.env
+*.env.local
+
+# Node
+gateway/node_modules/
+gateway/dist/
+
+# Python
+runner/__pycache__/
+runner/**/__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Data & Runtime
+data/memory/conversations/*.jsonl
+data/memory/chroma/
+data/logs/*.log
+data/sandbox/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo

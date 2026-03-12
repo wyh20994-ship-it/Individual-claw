@@ -1,0 +1,103 @@
+# HangClaw Global Configuration
+# 运行时从 .env 读取敏感信息，本文件管理结构性配置
+
+app:
+  name: HangClaw
+  version: "0.1.0"
+  debug: false
+
+gateway:
+  host: "0.0.0.0"
+  port: 3000
+  ws_port: 3001
+  channels:
+    qq:
+      enabled: false
+      sandbox: true          # QQ 沙箱环境
+    feishu:
+      enabled: false
+    dingtalk:
+      enabled: false
+  middleware:
+    rate_limit:
+      window_ms: 60000
+      max_requests: 60
+    auth:
+      enabled: true
+
+runner:
+  ws_url: "ws://127.0.0.1:3001"
+  llm:
+    default_provider: deepseek
+    default_model: deepseek-chat
+    providers:
+      deepseek:
+        enabled: true
+        max_tokens: 4096
+        temperature: 0.7
+      openai:
+        enabled: false
+        max_tokens: 4096
+        temperature: 0.7
+      claude:
+        enabled: false
+        max_tokens: 4096
+        temperature: 0.7
+      ollama:
+        enabled: false
+        default_model: qwen2.5:7b
+
+  memory:
+    conversation:
+      backend: jsonl
+      max_turns: 50              # 单会话最大保留轮数
+    semantic:
+      backend: chromadb
+      collection: hangclaw_mem
+      embedding_model: all-MiniLM-L6-v2
+    working:
+      backend: ttl_cache
+      default_ttl: 3600          # 秒
+
+  tools:
+    bash:
+      enabled: true
+      timeout: 30                # 秒
+      whitelist:                  # 允许的命令前缀
+        - ls
+        - cat
+        - head
+        - tail
+        - wc
+        - grep
+        - find
+        - echo
+        - date
+    file:
+      enabled: true
+      sandbox_path: "./data/sandbox"
+    http:
+      enabled: true
+      timeout: 15
+    search:
+      enabled: true
+      provider: tavily
+
+  skills:
+    auto_reload: true
+    scan_interval: 10            # 秒, 热重载扫描间隔
+    directory: "./runner/agent/skills"
+
+services:
+  pc_remote:
+    enabled: false
+    allowed_actions:
+      - lock_screen
+      - screenshot
+      - list_processes
+      - file_browse
+  amap:
+    enabled: false
+  tavily_daily:
+    enabled: false
+    push_cron: "0 8 * * *"      # 每天 08:00 推送
