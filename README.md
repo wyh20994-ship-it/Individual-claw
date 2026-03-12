@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # HangClaw
 
 > 基于 OpenClaw 架构的双引擎（Node.js Gateway + Python Runner）多渠道 AI Agent 基础设施。
@@ -29,12 +30,12 @@
 
 ## Features
 
-- **多端接入**：QQ 官方机器人、飞书、钉钉
+- **多端接入**：QQ 、飞书、钉钉，企业微信
 - **多 LLM 路由**：DeepSeek, OpenAI, Claude, Ollama
 - **三层记忆**：对话记忆 (JSONL) · 语义记忆 (ChromaDB) · 工作记忆 (TTL Cache)
 - **工具系统**：继承 `BaseTool`，支持文件、Bash、网络请求、搜索等
 - **技能系统**：基于 `SKILL.md` 定义，支持热重载、命令/关键词触发
-- **内置服务**：PC 远程控制、高德地图生活服务、Tavily AI 资讯日报推送
+- **内置服务**：PC 远程控制(持续增加)
 
 ## Quick Start
 
@@ -68,5 +69,4 @@ HangClaw/
 ```
 
 ## License
-
-MIT
+ 
