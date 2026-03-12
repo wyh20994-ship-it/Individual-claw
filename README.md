@@ -54,6 +54,71 @@ cd gateway && npm run dev
 cd runner && python main.py
 ```
 
+## Docker 部署
+
+### 前提条件
+
+- 已安装 [Docker](https://docs.docker.com/get-docker/) 和 Docker Compose
+
+### 步骤
+
+**1. 复制并配置环境变量**
+
+```bash
+cp .env.example .env
+# 编辑 .env，填入至少一个 LLM 的 API Key（如 DEEPSEEK_API_KEY）
+```
+
+> Docker 环境下 `.env` 中的服务地址已预设为容器服务名，无需手动修改。
+
+**2. 构建并启动所有服务**
+
+```bash
+docker compose up --build
+```
+
+启动顺序：`chromadb` → `runner` → `gateway`
+
+**3. 后台运行**
+
+```bash
+docker compose up -d --build
+```
+
+### 服务端口
+
+| 服务 | 地址 |
+|------|------|
+| Gateway HTTP | `http://localhost:3000` |
+| Gateway WebSocket (RPC) | `ws://localhost:3001` |
+| ChromaDB | `http://localhost:8000` |
+
+### 常用命令
+
+```bash
+# 查看实时日志
+docker compose logs -f
+
+# 只查看某个服务的日志
+docker compose logs -f runner
+
+# 停止所有容器
+docker compose down
+
+# 停止并清除持久化数据（⚠️ 会删除记忆数据）
+docker compose down -v
+
+# 修改代码后只重建某个服务
+docker compose up -d --build gateway
+docker compose up -d --build runner
+```
+
+### 注意事项
+
+- `runner/agent/skills` 已挂载为本地 volume，直接修改技能文件**无需重启容器**即可热重载。
+- `./data` 目录挂载到容器，日志、对话记忆、沙箱文件均持久化在本地。
+- 如需**本地非 Docker 方式运行**，将 `.env` 中的 `RUNNER_WS_URL` 改回 `ws://127.0.0.1:3001`，`CHROMA_HOST` 改回 `127.0.0.1`。
+
 ## Project Structure
 
 ```
