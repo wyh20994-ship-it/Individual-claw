@@ -1,8 +1,7 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { v4 as uuidv4 } from "uuid";
-import { logger } from "./utils/logger";
-import { JsonRpcRequest, JsonRpcResponse, createRpcResponse, createRpcError } from "./rpc/json-rpc";
-
+import { logger } from "../utils/logger";
+import { JsonRpcRequest, JsonRpcResponse, createRpcResponse, createRpcError } from "./json-rpc";
 let rpcClients: Map<string, WebSocket> = new Map();
 
 /**

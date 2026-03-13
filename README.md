@@ -131,6 +131,43 @@ HangClaw/
 ├── config.yaml       # 全局配置
 └── .env.example      # 环境变量模板
 ```
+## 代码细节
+- runner/skills/loader.py 
 
+```python
+def start_watching(self):
+    if not self.auto_reload:
+        return
+    def _watch():
+        while True:
+            time.sleep(self.scan_interval)
+            self._scan()
+    self._watcher_thread = threading.Thread(target=_watch,daemon=True)
+    self._watcher_thread.start()
+```
+时刻监听skills的变动
+- runner/llm/router.py：
+不同厂商的llm路由，可以随着自己的需求改变模型
+- runner/tools/：注册工具
+```python
+def get_all_tools(config: dict) -> list[BaseTool]:
+    """根据配置返回已启用的工具列表"""
+    tools: list[BaseTool] = []
+
+    if config.get("file", {}).get("enabled"):
+        tools.append(FileTool(config["file"]))
+    if config.get("bash", {}).get("enabled"):
+        tools.append(BashTool(config["bash"]))
+    if config.get("http", {}).get("enabled"):
+        tools.append(HttpTool(config["http"]))
+    if config.get("search", {}).get("enabled"):
+        tools.append(SearchTool(config["search"]))
+
+    return tools
+```
+新的工具放在tools下，在__init__.py里面注册.
+- runner/agent/core.py:数据处理流程，包括记忆、工具调用、技能触发等.
+- runner/rpc/handlers.py:请求路由，将gateway的请求分发到不同的处理函数.
+- runner/rpc/client.py:接受gateway发来的请求并转发到handlers.py，再将结果返回给gateway.
 ## License
  
