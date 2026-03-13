@@ -12,7 +12,7 @@ gateway:
   ws_port: 3001
   channels:
     qq:
-      enabled: false
+      enabled: true
       sandbox: true          # QQ 沙箱环境
     feishu:
       enabled: false

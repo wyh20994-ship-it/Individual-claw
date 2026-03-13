@@ -47,6 +47,32 @@ export function sendToRunner(method: string, params: Record<string, unknown>): s
   return id;
 }
 
+/**
+ * 向 Runner 发送请求并等待结果
+ */
+export async function sendToRunnerAndWait(
+  method: string,
+  params: Record<string, unknown>,
+  timeoutMs = 20_000,
+): Promise<unknown> {
+  const id = sendToRunner(method, params);
+  if (!id) {
+    throw new Error("Runner not connected");
+  }
+
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      pendingCallbacks.delete(id);
+      reject(new Error(`Runner response timeout after ${timeoutMs}ms`));
+    }, timeoutMs);
+
+    onRpcResult(id, (result) => {
+      clearTimeout(timer);
+      resolve(result);
+    });
+  });
+}
+
 // 回调注册表（简化版，生产中应用 Promise / EventEmitter）
 const pendingCallbacks = new Map<string, (result: unknown) => void>();
 

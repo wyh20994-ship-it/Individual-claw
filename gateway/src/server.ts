@@ -8,7 +8,13 @@ import { rateLimitMiddleware } from "./middleware/rateLimit";
 
 export async function startHttpServer(port: number, config: any): Promise<void> {
   const app = express();
-  app.use(express.json());
+  app.use(
+    express.json({
+      verify: (req: Request, _res: Response, buf: Buffer) => {
+        (req as Request & { rawBody?: string }).rawBody = buf.toString("utf8");
+      },
+    }),
+  );
 
   // --- 全局中间件 ---
   app.use(rateLimitMiddleware(config.gateway.middleware.rate_limit));
