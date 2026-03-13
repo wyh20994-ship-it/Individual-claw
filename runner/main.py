@@ -23,34 +23,27 @@ from utils.config import load_config
 async def main():
     config = load_config()
 
-    # 1. 初始化 Agent 核心
     agent = AgentCore(config)
     await agent.initialize()
     logger.info("[Runner] Agent core initialized")
 
-    # 2. 启动技能热重载
     skill_loader = SkillLoader(config)
-    skill_loader.start_watching()
+    skill_loader.start_watching() #热重载skills
     logger.info("[Runner] Skill hot-reload watcher started")
 
-    # 3. 连接 Gateway 的 WebSocket RPC Server
     ws_url = config["runner"].get("ws_url") or "ws://127.0.0.1:3001"
     rpc = RpcClient(ws_url, agent)
-    await rpc.connect()
+    await rpc.connect() #连接 Gateway 的 WebSocket RPC Server
     logger.info(f"[Runner] Connected to Gateway at {ws_url}")
 
-    # 等待结束信号
     stop_event = asyncio.Event()
-
     def _signal_handler():
         stop_event.set()
-
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             loop.add_signal_handler(sig, _signal_handler)
         except NotImplementedError:
-            # Windows 不支持 add_signal_handler
             pass
 
     await stop_event.wait()
