@@ -142,13 +142,8 @@ export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Respon
 
     const body = qqReq.body;
 
-    if (!verifyQQEd25519Signature(qqReq, appSecret)) {
-      logger.warn("[QQ] Invalid Ed25519 signature");
-      res.status(401).json({ code: -1, message: "invalid signature" });
-      return;
-    }
-
     // QQ 平台验证回调（首次注册 Webhook 时）
+    // op=13 请求没有 X-Signature-Ed25519 头，必须在签名校验之前处理
     if (body.op === 13) {
       if (qqToken && body.d?.token && body.d.token !== qqToken) {
         res.status(401).json({ code: -1, message: "invalid qq token" });
@@ -159,6 +154,12 @@ export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Respon
       const eventTs = String(body.d?.event_ts ?? "");
       const signature = signQQVerifyPayload(eventTs, plainToken, appSecret);
       res.json({ plain_token: plainToken, signature });
+      return;
+    }
+
+    if (!verifyQQEd25519Signature(qqReq, appSecret)) {
+      logger.warn("[QQ] Invalid Ed25519 signature");
+      res.status(401).json({ code: -1, message: "invalid signature" });
       return;
     }
 
