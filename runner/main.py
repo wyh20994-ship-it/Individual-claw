@@ -15,7 +15,6 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 
 from agent.core import AgentCore
 from rpc.client import RpcClient
-from agent.skills.loader import SkillLoader
 from utils.logger import logger
 from utils.config import load_config
 
@@ -26,10 +25,6 @@ async def main():
     agent = AgentCore(config)
     await agent.initialize()
     logger.info("[Runner] Agent core initialized")
-
-    skill_loader = SkillLoader(config)
-    skill_loader.start_watching() #热重载skills
-    logger.info("[Runner] Skill hot-reload watcher started")
 
     ws_url = config["runner"].get("ws_url") or "ws://127.0.0.1:3001"
     rpc = RpcClient(ws_url, agent)
