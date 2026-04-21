@@ -29,7 +29,10 @@
 - [ ] Gateway `Dockerfile` + Runner `Dockerfile` 编写，完善 docker-compose 一键启动
 - [ ] 错误重连：Runner 断线后自动重连 Gateway WebSocket
 - [ ] 日志完善：区分 info/warn/error，接入日志轮转
-
+- [ ] 上下文与记忆管理：用户偏好等自动更新到AGENT.md，历史记忆放置在./runner/agent/memory/conversation/,用户偏好自动更新到AGENT.md，大模型将历史记忆压缩存储为MEMORY.md
+- [ ] 异步锁：一次性发送多条信息时逐条处理
+- [ ] 记忆更新：自动更新MEMORY.md和AGENT.md
+- [ ] sandbox配置：外接沙盒或者本地开辟沙盒路径
 ---
 
 ## 阶段三：AI 最新消息推荐 & 内容推送
