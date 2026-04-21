@@ -1,4 +1,4 @@
-# HangClaw TODO
+# Individual-claw TODO
 
 ## 阶段一：跑通代码 & 基础联调
 
@@ -33,6 +33,7 @@
 - [ ] 异步锁：一次性发送多条信息时逐条处理
 - [ ] 记忆更新：自动更新MEMORY.md和AGENT.md
 - [ ] sandbox配置：外接沙盒或者本地开辟沙盒路径
+- [ ] 定时任务：sqlalchemy操控数据库存储定时任务，并写入磁盘
 ---
 
 ## 阶段三：AI 最新消息推荐 & 内容推送
