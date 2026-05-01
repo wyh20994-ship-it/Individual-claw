@@ -1,4 +1,4 @@
-# HangClaw
+# Individual-claw
 
 > 基于 OpenClaw 架构的双引擎（Node.js Gateway + Python Runner）多渠道 AI Agent 基础设施。
 
@@ -49,7 +49,7 @@ cd ../runner && pip install -r requirements.txt
 # 2. 配置环境变量
 cp .env.example .env
 # 编辑 .env 填入你的 API Keys
-
+ 
 # 3. 启动服务
 # 终端 1: Node.js Gateway
 cd gateway && npm run dev
