@@ -5,6 +5,7 @@ import { feishuWebhookHandler } from "./channels/feishu";
 import { dingtalkWebhookHandler } from "./channels/dingtalk";
 import { authMiddleware } from "./middleware/auth";
 import { rateLimitMiddleware } from "./middleware/rateLimit";
+import { sendToRunnerAndWait } from "./rpc";
 
 export async function startHttpServer(port: number, config: any): Promise<void> {
   const app = express();
@@ -16,16 +17,39 @@ export async function startHttpServer(port: number, config: any): Promise<void> 
     }),
   );
 
-  // --- 全局中间件 ---
   app.use(rateLimitMiddleware(config.gateway.middleware.rate_limit));
   app.use(authMiddleware(config.gateway.middleware.auth));
 
-  // --- 健康检查 ---
   app.get("/health", (_req: Request, res: Response) => {
     res.json({ status: "ok", service: "hangclaw-gateway" });
   });
 
-  // --- 渠道 Webhook 路由 ---
+  app.get("/admin/ping", async (_req: Request, res: Response) => {
+    try {
+      const result = await sendToRunnerAndWait("ping", {});
+      res.json({ status: "ok", result });
+    } catch (err) {
+      logger.error("[Admin] ping failed", err);
+      res.status(503).json({ status: "error", message: err instanceof Error ? err.message : "ping failed" });
+    }
+  });
+
+  app.post("/admin/clear_memory", async (req: Request, res: Response) => {
+    const userId = String(req.body?.userId ?? req.query?.userId ?? "").trim();
+    if (!userId) {
+      res.status(400).json({ status: "error", message: "userId is required" });
+      return;
+    }
+
+    try {
+      const result = await sendToRunnerAndWait("agent.clear_memory", { userId });
+      res.json({ status: "ok", result });
+    } catch (err) {
+      logger.error("[Admin] clear_memory failed", err);
+      res.status(503).json({ status: "error", message: err instanceof Error ? err.message : "clear_memory failed" });
+    }
+  });
+
   if (config.gateway.channels.qq?.enabled) {
     app.post("/webhook/qq", qqWebhookHandler);
     logger.info("[Gateway] QQ channel enabled");

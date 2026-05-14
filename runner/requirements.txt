@@ -21,6 +21,7 @@ aiofiles>=23.2
 
 # --- Services ---
 apscheduler>=3.10
+sqlalchemy>=2.0
 
 # --- Logging ---
 loguru>=0.7

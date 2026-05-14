@@ -1,68 +1,85 @@
-"""
-对话记忆 — 基于 JSONL 的持久化对话历史
-每个 user_id 对应一个 .jsonl 文件
-"""
-
 from __future__ import annotations
-import json
-import os
-from pathlib import Path
-from typing import Any
 
+import json
+from datetime import datetime
+from pathlib import Path
+
+from agent.schemas import ConversationEntry
 from utils.logger import logger
 
 
 class ConversationMemory:
     def __init__(self, config: dict):
-        self.max_turns = config.get("max_turns", 50)
-        base = os.getenv("MEMORY_CONVERSATIONS_DIR", "./data/memory/conversations")
-        self.base_dir = Path(base)
+        self.max_turns = int(config.get("max_turns", 50))
+        self.base_dir = Path(config.get("dir", "./runner/data/memory/conversation"))
         self.base_dir.mkdir(parents=True, exist_ok=True)
-        # 内存缓存：{ user_id: [messages] }
-        self._cache: dict[str, list[dict]] = {}
 
-    def _file_path(self, user_id: str) -> Path:
-        # 使用安全的文件名
-        safe_id = "".join(c if c.isalnum() or c in "-_" else "_" for c in user_id)
-        return self.base_dir / f"{safe_id}.jsonl"
+    def _date_key(self, when: datetime | None = None) -> str:
+        return (when or datetime.now()).strftime("%Y-%m-%d")
 
-    def get_history(self, user_id: str) -> list[dict]:
-        if user_id in self._cache:
-            return self._cache[user_id][-self.max_turns * 2 :]
+    def _file_path(self, when: datetime | None = None) -> Path:
+        return self.base_dir / f"{self._date_key(when)}.jsonl"
 
-        # 从文件加载
-        fp = self._file_path(user_id)
-        messages: list[dict] = []
-        if fp.exists():
-            with open(fp, "r", encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if line:
-                        messages.append(json.loads(line))
+    def get_history(self, user_id: str, turns: int | None = None) -> list[dict]:
+        entries = self.get_today_entries(user_id)
+        limit = (turns or self.max_turns) * 2
+        return [{"role": entry.role, "content": entry.content} for entry in entries[-limit:]]
 
-        # 只保留最近 N 轮
-        messages = messages[-self.max_turns * 2 :]
-        self._cache[user_id] = messages
-        return messages
+    def get_today_entries(self, user_id: str | None = None) -> list[ConversationEntry]:
+        fp = self._file_path()
+        if not fp.exists():
+            return []
 
-    def add_turn(self, user_id: str, role: str, content: str):
-        entry = {"role": role, "content": content}
-        if user_id not in self._cache:
-            self._cache[user_id] = []
-        self._cache[user_id].append(entry)
+        entries: list[ConversationEntry] = []
+        with open(fp, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if not line:
+                    continue
+                entry = ConversationEntry.model_validate(json.loads(line))
+                if user_id is None or entry.user_id == user_id:
+                    entries.append(entry)
+        return entries
 
-        # 追加写入文件
-        fp = self._file_path(user_id)
+    def read_day_text(self, when: datetime | None = None) -> str:
+        fp = self._file_path(when)
+        if not fp.exists():
+            return ""
+        return fp.read_text(encoding="utf-8")
+
+    def add_turn(
+        self,
+        user_id: str,
+        role: str,
+        content: str,
+        channel: str | None = None,
+        message_id: str | None = None,
+    ):
+        entry = ConversationEntry(
+            user_id=user_id,
+            role=role,
+            content=content,
+            timestamp=datetime.now().isoformat(timespec="seconds"),
+            channel=channel,
+            message_id=message_id,
+        )
+        fp = self._file_path()
+        fp.parent.mkdir(parents=True, exist_ok=True)
         with open(fp, "a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
-
-        # 截断内存缓存
-        if len(self._cache[user_id]) > self.max_turns * 2:
-            self._cache[user_id] = self._cache[user_id][-self.max_turns * 2 :]
+            f.write(json.dumps(entry.model_dump(), ensure_ascii=False) + "\n")
 
     def clear(self, user_id: str):
-        self._cache.pop(user_id, None)
-        fp = self._file_path(user_id)
-        if fp.exists():
-            fp.unlink()
-        logger.info(f"[ConvMemory] Cleared history for {user_id}")
+        fp = self._file_path()
+        if not fp.exists():
+            return
+
+        kept: list[str] = []
+        with open(fp, "r", encoding="utf-8") as f:
+            for line in f:
+                if not line.strip():
+                    continue
+                entry = ConversationEntry.model_validate(json.loads(line))
+                if entry.user_id != user_id:
+                    kept.append(line)
+        fp.write_text("".join(kept), encoding="utf-8")
+        logger.info(f"[ConvMemory] Cleared today's history for {user_id}")

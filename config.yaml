@@ -1,6 +1,3 @@
-# HangClaw Global Configuration
-# 运行时从 .env 读取敏感信息，本文件管理结构性配置
-
 app:
   name: HangClaw
   version: "0.1.0"
@@ -13,7 +10,7 @@ gateway:
   channels:
     qq:
       enabled: true
-      sandbox: true          # QQ 沙箱环境
+      sandbox: true
     feishu:
       enabled: false
     dingtalk:
@@ -47,23 +44,39 @@ runner:
         enabled: false
         default_model: qwen2.5:7b
 
+  planner:
+    enabled: false
+    provider: deepseek
+    model: deepseek-chat
+    trigger_keywords:
+      - "/规划"
+      - "/plan"
+      - "制定计划"
+      - "分解任务"
+
   memory:
     conversation:
       backend: jsonl
-      max_turns: 50              # 单会话最大保留轮数
+      dir: "./runner/data/memory/conversation"
+      max_turns: 50
+    long_term:
+      dir: "./runner/data/memory/long_term"
+    agent_file: "./runner/data/memory/AGENT.md"
+    index_file: "./runner/data/memory/MEMORY.md"
+    extract_cron: "0 0 * * *"
     semantic:
       backend: chromadb
       collection: hangclaw_mem
       embedding_model: all-MiniLM-L6-v2
     working:
       backend: ttl_cache
-      default_ttl: 3600          # 秒
+      default_ttl: 3600
 
   tools:
     bash:
       enabled: true
-      timeout: 30                # 秒
-      whitelist:                  # 允许的命令前缀
+      timeout: 30
+      whitelist:
         - ls
         - cat
         - head
@@ -75,7 +88,7 @@ runner:
         - date
     file:
       enabled: true
-      sandbox_path: "./data/sandbox"
+      sandbox_path: "./runner/data/sandbox"
     http:
       enabled: true
       timeout: 15
@@ -84,9 +97,16 @@ runner:
       provider: tavily
 
   skills:
-    auto_reload: true
-    scan_interval: 10            # 秒, 热重载扫描间隔
+    auto_reload: false
     directory: "./runner/agent/skills"
+
+  sandbox:
+    remote:
+      enabled: false
+      provider: "open_source_sdk"
+      endpoint: "http://127.0.0.1:8080"
+      sync_skills_on_start: true
+      timeout: 30
 
 services:
   pc_remote:
@@ -100,4 +120,4 @@ services:
     enabled: false
   tavily_daily:
     enabled: false
-    push_cron: "0 8 * * *"      # 每天 08:00 推送
+    push_cron: "0 8 * * *"

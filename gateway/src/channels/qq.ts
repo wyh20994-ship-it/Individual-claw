@@ -2,12 +2,20 @@ import { Request, Response } from "express";
 import axios from "axios";
 import nacl from "tweetnacl";
 import { ChannelMessage, WebhookHandler } from "./base";
-import { sendToRunnerAndWait } from "../rpc";
+import { dispatchChannelMessage } from "./commands";
 import { logger } from "../utils/logger";
 
 let qqAccessTokenCache: { token: string; expireAt: number } | null = null;
 
 type QQRequest = Request & { rawBody?: string };
+
+function seedFromSecret(botSecret: string): Uint8Array {
+  let seed = botSecret;
+  while (Buffer.byteLength(seed, "utf8") < 32) {
+    seed += seed;
+  }
+  return new Uint8Array(Buffer.from(seed, "utf8").subarray(0, 32));
+}
 
 function verifyQQEd25519Signature(req: QQRequest, botSecret: string): boolean {
   if (!botSecret) return false;
@@ -31,28 +39,13 @@ function verifyQQEd25519Signature(req: QQRequest, botSecret: string): boolean {
     return false;
   }
 
-  let seed = botSecret;
-  while (Buffer.byteLength(seed, "utf8") < 32) {
-    seed = seed + seed;
-  }
-  const seedBytes = Buffer.from(seed, "utf8").subarray(0, 32);
-  const keyPair = nacl.sign.keyPair.fromSeed(new Uint8Array(seedBytes));
-
+  const keyPair = nacl.sign.keyPair.fromSeed(seedFromSecret(botSecret));
   const message = Buffer.concat([Buffer.from(timestamp, "utf8"), Buffer.from(rawBody, "utf8")]);
-  return nacl.sign.detached.verify(
-    new Uint8Array(message),
-    new Uint8Array(signature),
-    keyPair.publicKey,
-  );
+  return nacl.sign.detached.verify(new Uint8Array(message), new Uint8Array(signature), keyPair.publicKey);
 }
 
 function signQQVerifyPayload(eventTs: string, plainToken: string, botSecret: string): string {
-  let seed = botSecret;
-  while (Buffer.byteLength(seed, "utf8") < 32) {
-    seed = seed + seed;
-  }
-  const seedBytes = Buffer.from(seed, "utf8").subarray(0, 32);
-  const keyPair = nacl.sign.keyPair.fromSeed(new Uint8Array(seedBytes));
+  const keyPair = nacl.sign.keyPair.fromSeed(seedFromSecret(botSecret));
   const payload = Buffer.from(`${eventTs}${plainToken}`, "utf8");
   const sig = nacl.sign.detached(new Uint8Array(payload), keyPair.secretKey);
   return Buffer.from(sig).toString("hex");
@@ -66,10 +59,7 @@ async function getQQAccessToken(appId: string, appSecret: string): Promise<strin
 
   const resp = await axios.post(
     "https://bots.qq.com/app/getAppAccessToken",
-    {
-      appId,
-      clientSecret: appSecret,
-    },
+    { appId, clientSecret: appSecret },
     { timeout: 10_000 },
   );
 
@@ -123,10 +113,6 @@ async function sendQQReply(opts: {
   );
 }
 
-/**
- * QQ 官方机器人 Webhook 处理
- * 文档: https://bot.q.qq.com/wiki/develop/api/
- */
 export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Response) => {
   try {
     const qqReq = req as QQRequest;
@@ -142,8 +128,6 @@ export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Respon
 
     const body = qqReq.body;
 
-    // QQ 平台验证回调（首次注册 Webhook 时）
-    // op=13 请求没有 X-Signature-Ed25519 头，必须在签名校验之前处理
     if (body.op === 13) {
       if (qqToken && body.d?.token && body.d.token !== qqToken) {
         res.status(401).json({ code: -1, message: "invalid qq token" });
@@ -165,10 +149,10 @@ export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Respon
 
     const message: ChannelMessage = {
       channel: "qq",
-      userId: body.author?.id ?? "",
+      userId: body.author?.id ?? body.author?.user_openid ?? "",
       userName: body.author?.username,
       groupId: body.group_openid,
-      content: body.content ?? "",
+      content: String(body.content ?? "").trim(),
       messageId: body.id ?? "",
       timestamp: Date.now(),
       raw: body,
@@ -176,29 +160,12 @@ export const qqWebhookHandler: WebhookHandler = async (req: Request, res: Respon
 
     logger.info(`[QQ] Message from ${message.userId}: ${message.content}`);
 
-    // 转发给 Python Runner 并等待回复
-    const rpcResult = await sendToRunnerAndWait("agent.chat", {
-      channel: message.channel,
-      userId: message.userId,
-      content: message.content,
-      messageId: message.messageId,
-      raw: message.raw,
-    });
-
-    let reply = "";
-    if (rpcResult && typeof rpcResult === "object") {
-      const r = rpcResult as { reply?: unknown };
-      reply = typeof r.reply === "string" ? r.reply : "";
-    }
-    if (!reply) {
-      reply = "收到消息了，正在处理。";
-    }
-
+    const reply = await dispatchChannelMessage(message);
     await sendQQReply({
       appId,
       appSecret,
       groupOpenId: body.group_openid,
-      userOpenId: body.author?.id,
+      userOpenId: body.author?.id ?? body.author?.user_openid,
       msgId: message.messageId,
       content: reply,
     });

@@ -42,6 +42,15 @@ class SemanticMemory:
         doc_id = str(uuid.uuid4())
         self._collection.add(documents=[text], ids=[doc_id], metadatas=[metadata or {}])
 
+    async def delete_user(self, user_id: str):
+        if not self._collection:
+            return
+        try:
+            self._collection.delete(where={"user_id": user_id})
+            logger.info(f"[SemanticMemory] Cleared semantic memory for {user_id}")
+        except Exception as e:
+            logger.error(f"[SemanticMemory] Delete failed: {e}")
+
     async def query(self, text: str, top_k: int = 3) -> list[str]:
         if not self._collection:
             return []

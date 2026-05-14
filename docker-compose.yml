@@ -9,8 +9,12 @@ services:
       - "3000:3000"
       - "3001:3001"
     env_file: .env
+    environment:
+      LOG_DIR: /app/data/logs
+    volumes:
+      - ./data:/app/data
     depends_on:
-      - runner
+      - chromadb
     restart: unless-stopped
 
   runner:
@@ -18,10 +22,17 @@ services:
       context: ./runner
       dockerfile: Dockerfile
     env_file: .env
+    environment:
+      RUNNER_WS_URL: ws://gateway:3001
+      CHROMA_HOST: chromadb
+      CHROMA_PORT: "8000"
+      LOG_DIR: /app/data/logs
+      MEMORY_CONVERSATIONS_DIR: /app/data/memory/conversations
     volumes:
       - ./data:/app/data
-      - ./runner/agent/skills:/app/runner/agent/skills   # 技能热重载
+      - ./runner/agent/skills:/app/runner/agent/skills
     depends_on:
+      - gateway
       - chromadb
     restart: unless-stopped
 

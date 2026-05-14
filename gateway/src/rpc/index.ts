@@ -1,12 +1,18 @@
 import { WebSocketServer, WebSocket } from "ws";
 import { v4 as uuidv4 } from "uuid";
 import { logger } from "../utils/logger";
-import { JsonRpcRequest, JsonRpcResponse, createRpcResponse, createRpcError } from "./json-rpc";
-let rpcClients: Map<string, WebSocket> = new Map();
+import { JsonRpcRequest, JsonRpcResponse } from "./json-rpc";
 
-/**
- * 启动 WebSocket JSON-RPC Server，供 Python Runner 连接
- */
+const rpcClients = new Map<string, WebSocket>();
+const pendingCallbacks = new Map<
+  string,
+  {
+    resolve: (result: unknown) => void;
+    reject: (err: Error) => void;
+    timer: NodeJS.Timeout;
+  }
+>();
+
 export async function startRpcServer(port: number): Promise<void> {
   const wss = new WebSocketServer({ port });
 
@@ -27,28 +33,28 @@ export async function startRpcServer(port: number): Promise<void> {
     ws.on("close", () => {
       rpcClients.delete(clientId);
       logger.info(`[RPC] Runner disconnected: ${clientId}`);
+      rejectAllPending("Runner disconnected");
+    });
+
+    ws.on("error", (err) => {
+      logger.error(`[RPC] Runner socket error: ${clientId}`, err);
     });
   });
 }
 
-/**
- * 向 Runner 发送 JSON-RPC 请求
- */
 export function sendToRunner(method: string, params: Record<string, unknown>): string | null {
   const client = rpcClients.values().next().value as WebSocket | undefined;
   if (!client || client.readyState !== WebSocket.OPEN) {
     logger.warn("[RPC] No runner connected");
     return null;
   }
+
   const id = uuidv4();
   const request: JsonRpcRequest = { jsonrpc: "2.0", id, method, params };
   client.send(JSON.stringify(request));
   return id;
 }
 
-/**
- * 向 Runner 发送请求并等待结果
- */
 export async function sendToRunnerAndWait(
   method: string,
   params: Record<string, unknown>,
@@ -65,24 +71,31 @@ export async function sendToRunnerAndWait(
       reject(new Error(`Runner response timeout after ${timeoutMs}ms`));
     }, timeoutMs);
 
-    onRpcResult(id, (result) => {
-      clearTimeout(timer);
-      resolve(result);
-    });
+    pendingCallbacks.set(id, { resolve, reject, timer });
   });
 }
 
-// 回调注册表（简化版，生产中应用 Promise / EventEmitter）
-const pendingCallbacks = new Map<string, (result: unknown) => void>();
+function handleRunnerResponse(_clientId: string, msg: JsonRpcResponse) {
+  if (!msg.id || !pendingCallbacks.has(msg.id)) {
+    return;
+  }
 
-export function onRpcResult(id: string, cb: (result: unknown) => void) {
-  pendingCallbacks.set(id, cb);
+  const pending = pendingCallbacks.get(msg.id)!;
+  pendingCallbacks.delete(msg.id);
+  clearTimeout(pending.timer);
+
+  if (msg.error) {
+    pending.reject(new Error(msg.error.message));
+    return;
+  }
+
+  pending.resolve(msg.result);
 }
 
-function handleRunnerResponse(_clientId: string, msg: JsonRpcResponse) {
-  if (msg.id && pendingCallbacks.has(msg.id)) {
-    const cb = pendingCallbacks.get(msg.id)!;
-    pendingCallbacks.delete(msg.id);
-    cb(msg.result ?? msg.error);
+function rejectAllPending(message: string) {
+  for (const [id, pending] of pendingCallbacks.entries()) {
+    clearTimeout(pending.timer);
+    pending.reject(new Error(message));
+    pendingCallbacks.delete(id);
   }
 }

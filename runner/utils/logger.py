@@ -1,21 +1,22 @@
-"""
-日志工具 — 基于 loguru
-"""
-
+import os
 import sys
+from pathlib import Path
+
 from loguru import logger
 
-# 移除默认 handler，自定义格式
+log_dir = Path(os.getenv("LOG_DIR", "./data/logs"))
+log_dir.mkdir(parents=True, exist_ok=True)
+
 logger.remove()
 
 logger.add(
     sys.stderr,
     format="<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>",
-    level="INFO",
+    level=os.getenv("LOG_LEVEL", "INFO").upper(),
 )
 
 logger.add(
-    "../data/logs/runner.log",
+    log_dir / "runner.log",
     rotation="10 MB",
     retention="7 days",
     encoding="utf-8",
